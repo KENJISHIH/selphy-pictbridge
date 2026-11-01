@@ -440,7 +440,7 @@ def shutdown(srv, cam):
 
 
 def print_bytes(printer_ip, data, date="", dateprint="default", layout="57000000", paper_size="51000000"):
-    """用 PictBridge 列印一張 JPEG。回傳 (成功與否, 說明)。dateprint=default 會套用機器的日期設定（含模糊顯示）。"""
+    """用 PictBridge 列印一張 JPEG。回傳 (成功與否, 代碼, 細節)；代碼：done／rejected／timeout／abnormal／error。dateprint=default 會套用機器的日期設定（含模糊顯示）。"""
     cam = Camera(jpeg=data, jpeg_date=time.strftime("%Y%m%dT%H%M%S"))
     srv = None
     try:
@@ -456,7 +456,7 @@ def print_bytes(printer_ip, data, date="", dateprint="default", layout="57000000
         resp = cam.dps(job, timeout=60)
         if "<result>10000000</result>" not in resp:
             words = re.sub(r"<[^>]+>", " ", resp).split()[:6]
-            return False, f"印表機拒絕列印工作：{words}"
+            return False, "rejected", " ".join(words)
         log("startJob 已被接受，等印表機讀照片並列印（最多 5 分鐘）")
         # 進度由印表機的 HREQUEST（notifyJobStatus／notifyDeviceStatus）即時記錄；收到 jobEndReason 就結束
         end = time.time() + 300
@@ -464,22 +464,22 @@ def print_bytes(printer_ip, data, date="", dateprint="default", layout="57000000
             time.sleep(0.5)
         time.sleep(3)   # 讓最後一個 DRSPONSE 送出
         if not cam.job_done.is_set():
-            return False, "等待逾時或連線中斷（看看印表機螢幕有沒有錯誤）"
+            return False, "timeout", ""
         last = next((r for r in reversed(cam.host_requests) if "jobEndReason" in r), "")
         if "71010000" in last:
-            return True, "完成"
+            return True, "done", ""
         codes = re.findall(r"<(\w+)>(7[0-9A-F]{7})<", last)
-        return False, f"印表機結束工作但不是正常完成：{codes}"
+        return False, "abnormal", str(codes)
     except Exception as e:
         log(f"✘ {type(e).__name__}: {e}")
-        return False, str(e)
+        return False, "error", str(e)
     finally:
         shutdown(srv, cam)
 
 
 def do_print(printer_ip, jpeg_path, date, dateprint, layout, paper_size):
-    ok, msg = print_bytes(printer_ip, open(jpeg_path, "rb").read(), date, dateprint, layout, paper_size)
-    log(f"結果：{'成功' if ok else '失敗'}－{msg}")
+    ok, code, detail = print_bytes(printer_ip, open(jpeg_path, "rb").read(), date, dateprint, layout, paper_size)
+    log(f"結果：{code} {detail}")
     return ok
 
 

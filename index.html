@@ -33,108 +33,114 @@
   .crop4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:6px; }
   .crop4 label { font-size:12px; color:var(--sub); display:flex; flex-direction:column; }
   .crop4 input { width:100%; font:inherit; font-size:13px; padding:4px; border:1px solid var(--line); border-radius:6px; }
+  #langs button { padding:4px 8px; font-size:12px; }
   #ruler10 { height:10px; background:repeating-linear-gradient(90deg,#c2185b 0 2px,transparent 2px 10%); border-bottom:2px solid #c2185b; margin:6px 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🖨️ SELPHY CP1300 列印編輯</h1>
-  <span id="status">讀取印表機狀態中…</span>
+  <h1>🖨️ <span data-i18n="appTitle">SELPHY CP1300 列印編輯</span></h1>
+  <span id="status" data-i18n="statusLoading">讀取印表機狀態中…</span>
+  <div class="row" id="langs" style="margin-left:auto">
+    <button data-lang="zh">中文</button>
+    <button data-lang="en">EN</button>
+    <button data-lang="ja">日本語</button>
+  </div>
 </header>
 <main>
   <div id="stage">
     <canvas id="preview"></canvas>
-    <div id="drop">把照片拖進來，或按右邊「選照片」</div>
+    <div id="drop" data-i18n="drop">把照片拖進來，或按右邊「選照片」</div>
   </div>
   <aside>
     <div>
       <input type="file" id="file" accept="image/*" hidden>
-      <button id="pick" style="width:100%">📂 選照片</button>
+      <button id="pick" style="width:100%" data-i18n="pick">📂 選照片</button>
       <div class="row" style="margin-top:6px">
-        <button id="realBtn">🔍 實際尺寸</button>
-        <button id="chartBtn">🎯 校正圖</button>
+        <button id="realBtn" data-i18n="real">🔍 實際尺寸</button>
+        <button id="chartBtn" data-i18n="chart">🎯 校正圖</button>
       </div>
     </div>
     <details id="calib">
-      <summary>校正（螢幕尺寸／實際裁切）</summary>
-      <label class="t" style="margin-top:8px">① 螢幕：拿尺量下面這條，調到剛好 5 公分（每格 5 mm）</label>
+      <summary data-i18n="calibSummary">校正（螢幕尺寸／實際裁切）</summary>
+      <label class="t" style="margin-top:8px" data-i18n="calibScreen">① 螢幕：拿尺量下面這條，調到剛好 5 公分（每格 5 mm）</label>
       <div id="ruler10"></div>
       <input type="range" id="screenK" min="3" max="9" step="0.01">
-      <div class="hint">目前 <span id="screenKv"></span> 點／mm（只要調一次，會記住）</div>
-      <label class="t" style="margin-top:10px">② 裁切：印「校正圖」後，讀每邊最外面還看得到的數字（mm）</label>
-      <div class="hint">對應目前的傳送方式：<b id="cropFor"></b></div>
+      <div class="hint"><span data-i18n="screenNow">目前</span> <span id="screenKv"></span> <span data-i18n="screenUnit">點／mm（只要調一次，會記住）</span></div>
+      <label class="t" style="margin-top:10px" data-i18n="calibCrop">② 裁切：印「校正圖」後，讀每邊最外面還看得到的數字（mm）</label>
+      <div class="hint"><span data-i18n="cropForLabel">對應目前的傳送方式：</span><b id="cropFor"></b></div>
       <div class="crop4">
-        <label>上<input type="number" id="cT" step="0.5" min="0" max="15"></label>
-        <label>下<input type="number" id="cB" step="0.5" min="0" max="15"></label>
-        <label>左<input type="number" id="cL" step="0.5" min="0" max="15"></label>
-        <label>右<input type="number" id="cR" step="0.5" min="0" max="15"></label>
+        <label><span data-i18n="top">上</span><input type="number" id="cT" step="0.5" min="0" max="15"></label>
+        <label><span data-i18n="bottom">下</span><input type="number" id="cB" step="0.5" min="0" max="15"></label>
+        <label><span data-i18n="left">左</span><input type="number" id="cL" step="0.5" min="0" max="15"></label>
+        <label><span data-i18n="right">右</span><input type="number" id="cR" step="0.5" min="0" max="15"></label>
       </div>
-      <button id="cropClear" style="margin-top:6px">恢復預設值</button>
-      <div class="hint">PictBridge 已內建實測值（上 4.5／下 3／左右 5）。</div>
+      <button id="cropClear" style="margin-top:6px" data-i18n="cropReset">恢復預設值</button>
+      <div class="hint" data-i18n="cropBuiltin">PictBridge 已內建實測值（上 4.5／下 3／左右 5）。</div>
     </details>
     <div>
-      <label class="t">紙張</label>
+      <label class="t" data-i18n="paper">紙張</label>
       <div class="row" id="papers">
         <button data-p="L" class="on">L 89×119</button>
-        <button data-p="postcard">明信片 100×148</button>
-        <button data-p="card">卡片 54×86</button>
+        <button data-p="postcard" data-i18n="postcard">明信片 100×148</button>
+        <button data-p="card" data-i18n="card">卡片 54×86</button>
       </div>
     </div>
     <div>
-      <label class="t">邊框</label>
+      <label class="t" data-i18n="border">邊框</label>
       <div class="row">
-        <button id="borderless" class="on">無邊框</button>
-        <button id="native">有邊框（同機器）</button>
+        <button id="borderless" class="on" data-i18n="borderless">無邊框</button>
+        <button id="native" data-i18n="bordered">有邊框（同機器）</button>
       </div>
     </div>
     <div>
-      <label class="t">傳送方式</label>
+      <label class="t" data-i18n="transport">傳送方式</label>
       <div class="row">
-        <button id="tPb" class="on">PictBridge（模糊日期）</button>
+        <button id="tPb" class="on" data-i18n="tPb">PictBridge（模糊日期）</button>
         <button id="tIpp">IPP</button>
-        <button id="tCpnp">CPNP（真無邊框）</button>
+        <button id="tCpnp" data-i18n="tCpnp">CPNP（真無邊框）</button>
       </div>
     </div>
     <div id="dateRow">
-      <label class="t">拍攝日期（自動讀照片檔，可修改）</label>
+      <label class="t" data-i18n="dateLabel">拍攝日期（自動讀照片檔，可修改）</label>
       <input type="text" id="date" placeholder="2026:10:31 16:58:44" style="width:100%;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
       <div class="row" id="dpRow" style="margin-top:6px">
-        <button id="dpDefault" class="on">照機器設定印日期</button>
-        <button id="dpOff">不印日期</button>
+        <button id="dpDefault" class="on" data-i18n="dpDefault">照機器設定印日期</button>
+        <button id="dpOff" data-i18n="dpOff">不印日期</button>
       </div>
-      <div class="hint" id="pbHint" style="margin-top:6px">要模糊日期：機器「打印設定 → 日期 → 模糊顯示」。⚠️ 印表機重開機會清掉這個設定，開機後要重設。</div>
+      <div class="hint" id="pbHint" style="margin-top:6px" data-i18n="pbHint">要模糊日期：機器「打印設定 → 日期 → 模糊顯示」。⚠️ 印表機重開機會清掉這個設定，開機後要重設。</div>
     </div>
     <div>
-      <label class="t">方向</label>
+      <label class="t" data-i18n="orientation">方向</label>
       <div class="row">
-        <button id="portrait" class="on">直式</button>
-        <button id="landscape">橫式</button>
-        <button id="rotate">↻ 照片轉 90°</button>
+        <button id="portrait" class="on" data-i18n="portrait">直式</button>
+        <button id="landscape" data-i18n="landscape">橫式</button>
+        <button id="rotate" data-i18n="rotate">↻ 照片轉 90°</button>
       </div>
     </div>
     <div>
-      <label class="t">縮放 <span id="zv">100%</span>（滾輪也可以）</label>
+      <label class="t"><span data-i18n="zoom">縮放</span> <span id="zv">100%</span><span data-i18n="zoomWheel">（滾輪也可以）</span></label>
       <input type="range" id="zoom" min="20" max="400" value="100">
       <div class="row" style="margin-top:6px">
-        <button id="fill">填滿紙張</button>
-        <button id="fit">完整顯示</button>
-        <button id="center">置中</button>
+        <button id="fill" data-i18n="fill">填滿紙張</button>
+        <button id="fit" data-i18n="fit">完整顯示</button>
+        <button id="center" data-i18n="center">置中</button>
       </div>
     </div>
     <div>
-      <label class="t"><input type="checkbox" id="grid" checked> 顯示九宮格（不會印出來）</label>
+      <label class="t"><input type="checkbox" id="grid" checked> <span data-i18n="grid">顯示九宮格（不會印出來）</span></label>
     </div>
     <div>
-      <label class="t">另外加白框 <span id="bv">0</span> mm</label>
+      <label class="t"><span data-i18n="extraBorder">另外加白框</span> <span id="bv">0</span> mm</label>
       <input type="range" id="border" min="0" max="10" step="0.5" value="0">
     </div>
     <div>
-      <label class="t">張數</label>
+      <label class="t" data-i18n="copies">張數</label>
       <input type="number" id="copies" min="1" max="10" value="1" style="width:80px">
     </div>
     <div class="hint" id="hint"></div>
-    <button id="validate" disabled>✔ 只驗證（不出紙）</button>
-    <button id="print" class="primary" disabled>列印</button>
+    <button id="validate" disabled data-i18n="validate">✔ 只驗證（不出紙）</button>
+    <button id="print" class="primary" disabled data-i18n="print">列印</button>
     <div id="msg"></div>
   </aside>
 </main>
@@ -156,6 +162,143 @@ const store = {
 // 螢幕每 mm 幾個 CSS 點。MacBook Pro 14 吋預設解析度（1512 寬／302 mm）約 5.0
 let screenK = parseFloat(store.get('selphy_screen_k')) || 5.0;
 const TNAME = { pictbridge: 'PictBridge', ipp: 'IPP', cpnp: 'CPNP' };
+
+// ---- 介面語言（繁中／英／日）。印表機選單用語照 Canon 各語言說明書 ----
+const I18N = {
+  zh: {
+    htmlLang: 'zh-Hant', docTitle: 'SELPHY 列印編輯', appTitle: 'SELPHY CP1300 列印編輯',
+    statusLoading: '讀取印表機狀態中…', drop: '把照片拖進來，或按右邊「選照片」',
+    pick: '📂 選照片', real: '🔍 實際尺寸', chart: '🎯 校正圖',
+    calibSummary: '校正（螢幕尺寸／實際裁切）',
+    calibScreen: '① 螢幕：拿尺量下面這條，調到剛好 5 公分（每格 5 mm）',
+    screenNow: '目前', screenUnit: '點／mm（只要調一次，會記住）',
+    calibCrop: '② 裁切：印「校正圖」後，讀每邊最外面還看得到的數字（mm）',
+    cropForLabel: '對應目前的傳送方式：', top: '上', bottom: '下', left: '左', right: '右',
+    cropReset: '恢復預設值', cropBuiltin: 'PictBridge 已內建實測值（上 4.5／下 3／左右 5）。',
+    paper: '紙張', postcard: '明信片 100×148', card: '卡片 54×86',
+    border: '邊框', borderless: '無邊框', bordered: '有邊框（同機器）',
+    transport: '傳送方式', tPb: 'PictBridge（模糊日期）', tCpnp: 'CPNP（真無邊框）',
+    dateLabel: '拍攝日期（自動讀照片檔，可修改）', dpDefault: '照機器設定印日期', dpOff: '不印日期',
+    pbHint: '要模糊日期：機器「打印設定 → 日期 → 模糊顯示」。⚠️ 印表機重開機會清掉這個設定，開機後要重設。',
+    orientation: '方向', portrait: '直式', landscape: '橫式', rotate: '↻ 照片轉 90°',
+    zoom: '縮放', zoomWheel: '（滾輪也可以）', fill: '填滿紙張', fit: '完整顯示', center: '置中',
+    grid: '顯示九宮格（不會印出來）', extraBorder: '另外加白框', copies: '張數',
+    validate: '✔ 只驗證（不出紙）', print: '列印',
+    hintNative: '有邊框：四周會留機器固定的細白邊，照片完全不會被裁。',
+    hintCrop: '無邊框：暗色部分是實測會被裁掉的範圍，白框內就是印出來的樣子。',
+    hintSafe: '無邊框：虛線外側可能被切掉一點點，重要的東西放在虛線內。（印校正圖可改成實測值）',
+    errImage: '讀不到這張照片。HEIC 請改用 Safari 開這個頁面，或先轉成 JPG。',
+    chartLoaded: '已載入校正圖。用 {t} 印一張，把四邊讀到的數字填進「校正」面板。',
+    chartTitle: 'SELPHY 裁切校正圖（L 橫式）', chartLine1: '每一邊：讀最外面還看得到的數字＝被裁掉幾 mm',
+    chartLine2: '三把尺數字不同，代表印出來有偏移',
+    validating: '驗證中…', sending: '送出中…', sendingLong: '{t} 傳送中…（約 1–2 分鐘，完成前不要關頁面）',
+    validOk: '✔ 印表機接受這組設定（沒有出紙）',
+    sentOk: '✔ 已送出（工作 #{id}），約 1 分鐘，紙會進出好幾次是正常的', printedOk: '✔ 列印完成',
+    failed: '✘ 失敗：',
+    st_idle: '待機', st_processing: '列印中', st_stopped: '停止',
+    rs_jam: '卡紙', rs_empty: '沒紙', rs_ink: '色帶用完', rs_needed: '需要放紙',
+    offline: '● 離線', notFound: '找不到印表機（電源／Wi-Fi？）', tray: '紙匣：', noBackend: '後端沒有回應',
+    e_busy: '印表機忙碌中，請稍後再試', e_rejected: '印表機拒絕列印工作',
+    e_timeout: '等待逾時或連線中斷（看看印表機螢幕有沒有錯誤）', e_abnormal: '印表機結束工作，但不是正常完成',
+    e_error: '連線錯誤', e_no_end: '傳完但沒收到結束訊號', e_ipp_error: '印表機回報錯誤', e_bad_request: '參數錯誤',
+  },
+  en: {
+    htmlLang: 'en', docTitle: 'SELPHY Print Editor', appTitle: 'SELPHY CP1300 Print Editor',
+    statusLoading: 'Checking printer…', drop: 'Drop a photo here, or click "Choose photo"',
+    pick: '📂 Choose photo', real: '🔍 True size', chart: '🎯 Calibration chart',
+    calibSummary: 'Calibration (screen size / actual crop)',
+    calibScreen: '① Screen: measure this bar with a ruler and adjust it to exactly 5 cm (5 mm per tick)',
+    screenNow: 'Currently', screenUnit: 'px/mm (set once, it is remembered)',
+    calibCrop: '② Crop: print the calibration chart, then read the outermost number still visible on each edge (mm)',
+    cropForLabel: 'For the current transport: ', top: 'Top', bottom: 'Bottom', left: 'Left', right: 'Right',
+    cropReset: 'Reset to default', cropBuiltin: 'PictBridge has built-in measured values (top 4.5 / bottom 3 / left & right 5).',
+    paper: 'Paper', postcard: 'Postcard 100×148', card: 'Card 54×86',
+    border: 'Border', borderless: 'Borderless', bordered: "Bordered (printer's own)",
+    transport: 'Send via', tPb: 'PictBridge (subtle date)', tCpnp: 'CPNP (true borderless)',
+    dateLabel: 'Shooting date (read from the photo, editable)', dpDefault: 'Date per printer setting', dpOff: 'No date',
+    pbHint: 'For the subtle date, set Print Settings → Date → Subtle on the printer. ⚠️ Turning the printer off resets it, so set it again after power-on.',
+    orientation: 'Orientation', portrait: 'Portrait', landscape: 'Landscape', rotate: '↻ Rotate photo 90°',
+    zoom: 'Zoom', zoomWheel: ' (mouse wheel works too)', fill: 'Fill paper', fit: 'Fit whole photo', center: 'Center',
+    grid: 'Show rule-of-thirds grid (not printed)', extraBorder: 'Extra white border', copies: 'Copies',
+    validate: '✔ Validate only (no paper)', print: 'Print',
+    hintNative: 'Bordered: the printer leaves a thin white border; nothing is cropped.',
+    hintCrop: 'Borderless: the darkened area is the measured crop. What is inside the white frame is what gets printed.',
+    hintSafe: 'Borderless: a little outside the dashed line may be cut off, so keep important things inside it. (Print the calibration chart to use measured values.)',
+    errImage: "Can't read this photo. For HEIC, open this page in Safari or convert it to JPG first.",
+    chartLoaded: 'Calibration chart loaded. Print it via {t}, then enter the four numbers in the Calibration panel.',
+    chartTitle: 'SELPHY crop calibration chart (L, landscape)', chartLine1: 'On each edge, the outermost visible number = mm cropped',
+    chartLine2: 'Different readings on the three rulers mean the print is shifted',
+    validating: 'Validating…', sending: 'Sending…', sendingLong: 'Sending via {t}… (about 1–2 min, keep this page open)',
+    validOk: '✔ The printer accepts these settings (nothing printed)',
+    sentOk: '✔ Sent (job #{id}). It takes about a minute; the paper moving in and out several times is normal.', printedOk: '✔ Printed',
+    failed: '✘ Failed: ',
+    st_idle: 'Idle', st_processing: 'Printing', st_stopped: 'Stopped',
+    rs_jam: 'paper jam', rs_empty: 'out of paper', rs_ink: 'ink cassette empty', rs_needed: 'load paper',
+    offline: '● Offline', notFound: 'Printer not found (power / Wi-Fi?)', tray: 'Paper: ', noBackend: 'Server not responding',
+    e_busy: 'The printer is busy. Try again in a moment.', e_rejected: 'The printer rejected the print job',
+    e_timeout: 'Timed out or disconnected (check the printer screen for errors)', e_abnormal: 'The printer ended the job abnormally',
+    e_error: 'Connection error', e_no_end: 'Sent, but no completion signal was received', e_ipp_error: 'The printer reported an error', e_bad_request: 'Invalid request',
+  },
+  ja: {
+    htmlLang: 'ja', docTitle: 'SELPHY 印刷エディター', appTitle: 'SELPHY CP1300 印刷エディター',
+    statusLoading: 'プリンターの状態を確認中…', drop: 'ここに写真をドロップするか、「写真を選ぶ」を押してください',
+    pick: '📂 写真を選ぶ', real: '🔍 実寸表示', chart: '🎯 校正チャート',
+    calibSummary: '校正（画面サイズ／実際のトリミング）',
+    calibScreen: '① 画面：下の線を定規で測り、ちょうど 5 cm になるよう調整（1 目盛り 5 mm）',
+    screenNow: '現在', screenUnit: 'px/mm（一度設定すれば記憶されます）',
+    calibCrop: '② トリミング：校正チャートを印刷し、各辺でいちばん外側に見えている数字（mm）を読み取ります',
+    cropForLabel: '現在の送信方式：', top: '上', bottom: '下', left: '左', right: '右',
+    cropReset: '初期値に戻す', cropBuiltin: 'PictBridge には実測値が組み込み済みです（上 4.5／下 3／左右 5）。',
+    paper: '用紙', postcard: 'はがき 100×148', card: 'カード 54×86',
+    border: 'フチ', borderless: 'フチなし', bordered: 'フチあり（本体と同じ）',
+    transport: '送信方式', tPb: 'PictBridge（さりげなく日付）', tCpnp: 'CPNP（完全フチなし）',
+    dateLabel: '撮影日時（写真から自動取得・編集可）', dpDefault: '本体の設定で日付を印刷', dpOff: '日付なし',
+    pbHint: 'さりげなく日付にするには、本体で「印刷設定 → 日付 → さりげなく」を選びます。⚠️ 電源を切ると元に戻るので、電源を入れるたびに設定してください。',
+    orientation: '向き', portrait: '縦', landscape: '横', rotate: '↻ 写真を 90° 回転',
+    zoom: '拡大縮小', zoomWheel: '（ホイールでも可）', fill: '用紙いっぱい', fit: '全体を表示', center: '中央',
+    grid: '三分割グリッドを表示（印刷されません）', extraBorder: '白フチを追加', copies: '枚数',
+    validate: '✔ 検証のみ（印刷しない）', print: '印刷',
+    hintNative: 'フチあり：本体の決まった細い白フチが付き、写真は切れません。',
+    hintCrop: 'フチなし：暗い部分は実測で切れる範囲です。白枠の内側が実際に印刷されます。',
+    hintSafe: 'フチなし：点線の外側は少し切れることがあります。大事なものは点線の内側に入れてください。（校正チャートを印刷すると実測値にできます）',
+    errImage: 'この写真を読み込めません。HEIC の場合は Safari でこのページを開くか、先に JPG に変換してください。',
+    chartLoaded: '校正チャートを読み込みました。{t} で 1 枚印刷し、4 辺で読み取った数字を「校正」パネルに入力してください。',
+    chartTitle: 'SELPHY トリミング校正チャート（L 判・横）', chartLine1: '各辺：いちばん外側に見える数字＝切れた量（mm）',
+    chartLine2: '3 本の定規で数字が違う場合は、印刷位置がずれています',
+    validating: '検証中…', sending: '送信中…', sendingLong: '{t} で送信中…（1〜2 分ほどかかります。完了までページを閉じないでください）',
+    validOk: '✔ プリンターはこの設定を受け付けました（印刷はしていません）',
+    sentOk: '✔ 送信しました（ジョブ #{id}）。約 1 分かかります。用紙が何度か出入りするのは正常です。', printedOk: '✔ 印刷完了',
+    failed: '✘ 失敗：',
+    st_idle: '待機中', st_processing: '印刷中', st_stopped: '停止',
+    rs_jam: '紙詰まり', rs_empty: '用紙なし', rs_ink: 'インク切れ', rs_needed: '用紙をセットしてください',
+    offline: '● オフライン', notFound: 'プリンターが見つかりません（電源／Wi-Fi を確認）', tray: '用紙：', noBackend: 'サーバーが応答しません',
+    e_busy: 'プリンターが使用中です。少し待ってからもう一度お試しください。', e_rejected: 'プリンターが印刷ジョブを拒否しました',
+    e_timeout: 'タイムアウトまたは切断されました（プリンターの画面にエラーがないか確認してください）', e_abnormal: 'プリンターがジョブを正常に完了しませんでした',
+    e_error: '接続エラー', e_no_end: '送信しましたが、完了の通知がありません', e_ipp_error: 'プリンターがエラーを返しました', e_bad_request: 'リクエストが正しくありません',
+  },
+};
+function detectLang() {
+  const n = (navigator.language || 'en').toLowerCase();
+  return n.startsWith('zh') ? 'zh' : n.startsWith('ja') ? 'ja' : 'en';
+}
+let LANG = I18N[store.get('selphy_lang')] ? store.get('selphy_lang') : detectLang();
+function t(key, vars = {}) {
+  let s = I18N[LANG][key] ?? I18N.en[key] ?? key;
+  for (const [k, v] of Object.entries(vars)) s = s.replaceAll('{' + k + '}', v);
+  return s;
+}
+function applyI18n() {
+  document.documentElement.lang = t('htmlLang');
+  document.title = t('docTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('#langs button').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
+}
+function setLang(l) {
+  LANG = l; store.set('selphy_lang', l);
+  applyI18n();
+  if (S.img && S.chart) makeChart(); else if (typeof draw === 'function') draw();
+  refreshStatus(true);
+}
 S.real = false;
 // 實測裁切值（mm），以「橫式照片」的上下左右記錄，依傳送方式分開存
 // 內建預設：2026-11-01 校正圖實測（PictBridge 無邊框 L）：上 4.5、下 3、左右各 5（左右含撕線位置）
@@ -244,11 +387,7 @@ function layoutPreview() {
 }
 function draw() {
   render(cv, previewPxPerMm, 0, 0, true);
-  $('hint').textContent = S.native
-    ? '有邊框：四周會留機器固定的細白邊，照片完全不會被裁。'
-    : cropNow()
-      ? '無邊框：暗色部分是實測會被裁掉的範圍，白框內就是印出來的樣子。'
-      : '無邊框：虛線外側可能被切掉一點點，重要的東西放在虛線內。（印校正圖可改成實測值）';
+  $('hint').textContent = t(S.native ? 'hintNative' : cropNow() ? 'hintCrop' : 'hintSafe');
   syncCalib();
   $('zv').textContent = Math.round(S.zoom*100) + '%';
   $('zoom').value = Math.round(S.zoom*100);
@@ -296,7 +435,8 @@ function loadFile(f) {
   img.onload = () => { S.img = img; S.zoom = 1; S.ox = S.oy = 0; S.rot = 0;
     // 照片橫的就自動切橫式
     S.landscape = img.width > img.height; syncButtons(); layoutPreview(); msg(''); };
-  img.onerror = () => msg('讀不到這張照片。HEIC 請改用 Safari 開這個頁面，或先轉成 JPG。', true);
+  img.onerror = () => msg(t('errImage'), true);
+  S.chart = false;
   img.src = URL.createObjectURL(f);
 }
 $('pick').onclick = () => $('file').click();
@@ -383,10 +523,10 @@ function makeChart() {
     g.beginPath(); g.rect(d, d, W - 2*d, H - 2*d); g.rect(d + 1, d + 1, W - 2*d - 2, H - 2*d - 2); g.fill('evenodd');
   }
   const edges = [
-    { name: '上', color: '#d32f2f', at: (d, s) => [W * s, d], dir: 'v' },
-    { name: '下', color: '#1565c0', at: (d, s) => [W * s, H - d], dir: 'v' },
-    { name: '左', color: '#2e7d32', at: (d, s) => [d, H * s], dir: 'h' },
-    { name: '右', color: '#ef6c00', at: (d, s) => [W - d, H * s], dir: 'h' },
+    { key: 'top', color: '#d32f2f', at: (d, s) => [W * s, d], dir: 'v' },
+    { key: 'bottom', color: '#1565c0', at: (d, s) => [W * s, H - d], dir: 'v' },
+    { key: 'left', color: '#2e7d32', at: (d, s) => [d, H * s], dir: 'h' },
+    { key: 'right', color: '#ef6c00', at: (d, s) => [W - d, H * s], dir: 'h' },
   ];
   g.textBaseline = 'middle'; g.textAlign = 'center';
   for (const e of edges) {
@@ -407,19 +547,19 @@ function makeChart() {
       }
     }
     const [lx, ly] = e.at(18, 0.5);
-    g.fillStyle = e.color; g.font = 'bold 5px sans-serif'; g.fillText(e.name, lx, ly);
+    g.fillStyle = e.color; g.font = `bold ${LANG === 'en' ? 4 : 5}px sans-serif`; g.fillText(t(e.key), lx, ly);
   }
   g.fillStyle = '#333'; g.font = 'bold 3.2px sans-serif';
-  g.fillText('SELPHY 裁切校正圖（L 橫式）', W/2, H/2 - 4);
+  g.fillText(t('chartTitle'), W/2, H/2 - 4);
   g.font = '2.4px sans-serif';
-  g.fillText('每一邊：讀最外面還看得到的數字＝被裁掉幾 mm', W/2, H/2 + 1);
-  g.fillText('三把尺數字不同代表有偏移，請三個都告訴我', W/2, H/2 + 4.5);
+  g.fillText(t('chartLine1'), W/2, H/2 + 1);
+  g.fillText(t('chartLine2'), W/2, H/2 + 4.5);
   const img = new Image();
   img.onload = () => {
-    S.img = img; S.zoom = 1; S.ox = S.oy = 0; S.rot = 0; S.landscape = true; S.native = false;
+    S.img = img; S.chart = true; S.zoom = 1; S.ox = S.oy = 0; S.rot = 0; S.landscape = true; S.native = false;
     $('date').value = ''; setDateprint('off');
     syncButtons(); layoutPreview();
-    msg('已載入校正圖。用 ' + TNAME[S.transport] + ' 印一張，把四邊讀到的數字填進「校正」面板。');
+    msg(t('chartLoaded', { t: TNAME[S.transport] }));
   };
   img.src = c.toDataURL('image/png');
 }
@@ -454,16 +594,20 @@ function exportJpeg() {
 async function send(validate) {
   const btns = [$('print'), $('validate')]; btns.forEach(b => b.disabled = true);
   sending = true;
-  msg(validate ? '驗證中…' : '送出中…');
+  msg(t(validate ? 'validating' : 'sending'));
   try {
     const { blob, w, h } = await exportJpeg();
     const q = new URLSearchParams({ paper:S.paper, copies:$('copies').value, validate: validate ? '1' : '0',
       bordered: S.native ? '1' : '0', transport: S.transport, w, h, dateprint: S.dateprint,
       date: S.transport !== 'ipp' ? $('date').value.trim() : '' });
-    if (S.transport !== 'ipp' && !validate) msg(`${S.transport === 'pictbridge' ? 'PictBridge' : 'CPNP'} 傳送中…（約 1–2 分鐘，完成前不要關頁面）`);
+    if (S.transport !== 'ipp' && !validate) msg(t('sendingLong', { t: TNAME[S.transport] }));
     const r = await (await fetch('/print?' + q, { method:'POST', body:blob })).json();
-    if (r.ok) msg(validate ? '✔ 印表機接受這組設定（沒有出紙）' : `✔ 已送出（工作 #${r.job_id}），約 1 分鐘，紙會進出好幾次是正常的`);
-    else msg('✘ 失敗：' + r.status, true);
+    if (r.ok) msg(validate ? t('validOk') : S.transport === 'ipp' ? t('sentOk', { id: r.job_id }) : t('printedOk'));
+    else {
+      // 伺服器回代碼，前端依語言翻譯；細節（印表機原文）附在後面
+      const known = I18N.en['e_' + r.code] ? t('e_' + r.code) : '';
+      msg(t('failed') + [known, r.status].filter(Boolean).join(' — '), true);
+    }
   } catch (e) { msg('✘ ' + e, true); }
   sending = false;
   btns.forEach(b => b.disabled = !S.img);
@@ -471,26 +615,35 @@ async function send(validate) {
 }
 $('validate').onclick = () => send(true);
 $('print').onclick = () => send(false);
-function msg(t, err) { $('msg').textContent = t; $('msg').style.color = err ? '#c62828' : ''; }
+function msg(text, err) { $('msg').textContent = text; $('msg').style.color = err ? '#c62828' : ''; }
 
-// 印表機狀態
-const STATE = { idle:'待機', processing:'列印中', stopped:'停止' };
-const REASON = { none:'', 'media-jam-error':'卡紙', 'media-empty-error':'沒紙', 'marker-supply-empty-error':'色帶用完', 'media-needed':'需要放紙' };
-const MEDIA = { 'om_dsc-photo_89x119mm':'L', 'jpn_hagaki_100x148mm':'明信片', 'om_card_54x86mm':'卡片' };
-let statusBusy = false, sending = false;
-async function refreshStatus() {
+// 印表機狀態（IPP 回報值 → 翻譯鍵）
+const REASON = { 'media-jam-error':'rs_jam', 'media-empty-error':'rs_empty', 'marker-supply-empty-error':'rs_ink', 'media-needed':'rs_needed' };
+const MEDIA = { 'om_dsc-photo_89x119mm':'L', 'jpn_hagaki_100x148mm':'postcard', 'om_card_54x86mm':'card' };
+let statusBusy = false, sending = false, lastStatus = null;
+function renderStatus(s) {
+  const el = $('status');
+  if (!s) return;
+  if (s.error) { el.className = 'err'; el.textContent = t('noBackend'); return; }
+  if (!s.online) { el.className = 'err'; el.innerHTML = `<b>${t('offline')}</b> ${t('notFound')}`; return; }
+  const bad = s.reasons !== 'none';
+  const state = I18N.en['st_' + s.state] ? t('st_' + s.state) : s.state;
+  const reason = bad ? ' — ' + (REASON[s.reasons] ? t(REASON[s.reasons]) : s.reasons) : '';
+  const media = MEDIA[s.media_ready] === 'L' ? 'L' : MEDIA[s.media_ready] ? t(MEDIA[s.media_ready]).split(' ')[0] : s.media_ready;
+  el.className = bad ? 'err' : 'ok';
+  el.innerHTML = `<b>● ${state}${reason}</b>　${t('tray')}${media}`;
+}
+async function refreshStatus(rerenderOnly) {
+  if (rerenderOnly === true) return renderStatus(lastStatus);   // 切換語言：用上一次的狀態重畫，不打印表機
   if (statusBusy || sending) return;   // 上一次還沒回來、或正在送印，就不再問（印表機一次只能處理一個連線）
   statusBusy = true;
-  try {
-    const s = await (await fetch('/status')).json();
-    const el = $('status');
-    if (!s.online) { el.className = 'err'; el.innerHTML = '<b>● 離線</b> ' + s.message; return; }
-    const bad = s.reasons !== 'none';
-    el.className = bad ? 'err' : 'ok';
-    el.innerHTML = `<b>● ${STATE[s.state] || s.state}${bad ? '：' + (REASON[s.reasons] || s.reasons) : ''}</b>　紙匣：${MEDIA[s.media_ready] || s.media_ready}`;
-  } catch { $('status').textContent = '後端沒有回應'; }
+  try { lastStatus = await (await fetch('/status')).json(); }
+  catch { lastStatus = { error: true }; }
   finally { statusBusy = false; }
+  renderStatus(lastStatus);
 }
+document.querySelectorAll('#langs button').forEach(b => b.onclick = () => setLang(b.dataset.lang));
+applyI18n();
 refreshStatus(); setInterval(refreshStatus, 15000);
 layoutPreview();
 </script>

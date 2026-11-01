@@ -32,7 +32,7 @@ PORT = int(os.environ.get("SELPHY_PORT", "8765"))
 
 # SELPHY 的網路晶片同時只能處理一個連線，多個請求並發會讓它整個卡死，所以所有 ipptool 呼叫都要排隊
 PRINTER_LOCK = threading.Lock()
-_last_status = {"online": False, "message": "尚未讀取"}
+_last_status = {"online": False, "code": "unknown"}
 
 # 紙張尺寸，單位 1/100 mm（IPP media-size 的單位）
 PAPERS = {
@@ -141,7 +141,7 @@ def printer_status():
     finally:
         PRINTER_LOCK.release()
     if not ok:
-        _last_status = {"online": False, "message": "找不到印表機（電源／Wi-Fi？）"}
+        _last_status = {"online": False, "code": "not_found"}
         return _last_status
     a = parse_attrs(out)
     _last_status = {
@@ -156,7 +156,7 @@ def printer_status():
 
 def submit_job(jpeg_bytes, paper, copies, validate_only, bordered=False):
     if not PRINTER_LOCK.acquire(timeout=30):
-        return {"ok": False, "job_id": None, "status": "印表機忙碌中，請稍後再試"}
+        return {"ok": False, "job_id": None, "code": "busy", "status": ""}
     try:
         return _submit_job(jpeg_bytes, paper, copies, validate_only, bordered)
     finally:
@@ -166,7 +166,7 @@ def submit_job(jpeg_bytes, paper, copies, validate_only, bordered=False):
 def submit_cpnp(jpeg_bytes, paper, bordered, date, w, h):
     """CPNP（Canon App 協定，舊版 flags 開始指令）送印；有日期就寫進 EXIF，看印表機會不會自己加日期。"""
     if not PRINTER_LOCK.acquire(timeout=30):
-        return {"ok": False, "job_id": None, "status": "印表機忙碌中，請稍後再試"}
+        return {"ok": False, "job_id": None, "code": "busy", "status": ""}
     host = urlparse(PRINTER_URI).hostname
     try:
         if date:
@@ -174,9 +174,9 @@ def submit_cpnp(jpeg_bytes, paper, bordered, date, w, h):
         cpnp.LOG_FILE = str(ROOT / "cpnp_last.log")
         Path(cpnp.LOG_FILE).write_text(f"paper={paper} bordered={bordered} date={date} {w}x{h}\n")
         ok = cpnp.print_jpeg(host, jpeg_bytes, w, h, paper, bordered, legacy=True)
-        return {"ok": ok, "job_id": "CPNP", "status": "完成" if ok else "傳完但沒收到結束訊號"}
+        return {"ok": ok, "job_id": "CPNP", "code": "done" if ok else "no_end", "status": ""}
     except Exception as e:
-        return {"ok": False, "job_id": None, "status": f"CPNP：{e}"}
+        return {"ok": False, "job_id": None, "code": "error", "status": str(e)}
     finally:
         PRINTER_LOCK.release()
 
@@ -185,15 +185,15 @@ def submit_pictbridge(jpeg_bytes, date, dateprint):
     """PictBridge（DPS over PTP-IP）送印。dateprint=default 時套用機器「打印設定→日期」（模糊顯示就是在這裡設）。
     日期同時寫進 EXIF 與 DPS printInfo，機器不管讀哪一個都拿得到。"""
     if not PRINTER_LOCK.acquire(timeout=30):
-        return {"ok": False, "job_id": None, "status": "印表機忙碌中，請稍後再試"}
+        return {"ok": False, "job_id": None, "code": "busy", "status": ""}
     host = urlparse(PRINTER_URI).hostname
     try:
         if date:
             jpeg_bytes = cpnp.add_exif_date(jpeg_bytes, date)
         pictbridge_cam.LOG_FILE = str(ROOT / "pictbridge_last.log")
         Path(pictbridge_cam.LOG_FILE).write_text(f"date={date} dateprint={dateprint} size={len(jpeg_bytes)}\n")
-        ok, msg = pictbridge_cam.print_bytes(host, jpeg_bytes, date[:10].replace(":", "/") if date else "", dateprint)
-        return {"ok": ok, "job_id": "PictBridge", "status": msg}
+        ok, code, detail = pictbridge_cam.print_bytes(host, jpeg_bytes, date[:10].replace(":", "/") if date else "", dateprint)
+        return {"ok": ok, "job_id": "PictBridge", "code": code, "status": detail}
     finally:
         PRINTER_LOCK.release()
 
@@ -206,7 +206,7 @@ def _submit_job(jpeg_bytes, paper, copies, validate_only, bordered):
         t.write_text(job_test_text(validate_only))
         ok, out = run_ipptool(build_job_args(t, jp, paper, copies, validate_only, bordered))
     a = parse_attrs(out)
-    return {"ok": ok, "job_id": a.get("job-id"), "status": a.get("status-code", out[-300:])}
+    return {"ok": ok, "job_id": a.get("job-id"), "code": "done" if ok else "ipp_error", "status": a.get("status-code", out[-300:])}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -259,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(200, submit_job(body, paper, copies, validate_only, bordered))
         except ValueError as e:
-            self._send(400, {"ok": False, "status": str(e)})
+            self._send(400, {"ok": False, "code": "bad_request", "status": str(e)})
 
     def log_message(self, fmt, *args):
         pass
@@ -267,11 +267,11 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     if not os.environ.get("SELPHY_URI"):
-        print("沒有設定 SELPHY_URI，搜尋網路上的 SELPHY…（印表機要先按 (( )) 進 Wi-Fi 模式）")
+        print("SELPHY_URI not set, searching for a SELPHY on the network… (press the printer's Wi-Fi (( )) button first)", flush=True)
         found = discover_printer_uri()
         if found:
             PRINTER_URI = found
         else:
-            print("找不到 SELPHY。可以設定環境變數 SELPHY_URI=ipp://<印表機IP>:631/ipp/print 後再啟動")
-    print(f"SELPHY 編輯器：http://127.0.0.1:{PORT}  （印表機 {PRINTER_URI}）")
+            print("No SELPHY found. Set SELPHY_URI=ipp://<printer-ip>:631/ipp/print and start again.", flush=True)
+    print(f"SELPHY editor: http://127.0.0.1:{PORT}  (printer: {PRINTER_URI})", flush=True)
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

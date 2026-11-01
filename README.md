@@ -8,7 +8,7 @@ Until now that subtle date was only available when printing from a camera or fro
 
 > Not affiliated with, endorsed by, or sponsored by Canon Inc. "Canon" and "SELPHY" are trademarks of Canon Inc.
 
-![The editor with the calibration chart loaded. The darkened border is the measured borderless crop](docs/screenshot.png)
+![The editor with the calibration chart loaded. The darkened border is the measured borderless crop](docs/screenshot-en.png)
 
 ## How it works
 
@@ -27,6 +27,7 @@ With PictBridge, `datePrint` is sent as *default* (`54000000`), which tells the 
 - **Measured crop mask**: borderless PictBridge prints are scaled by about 108% (on our CP1300: top 4.5 mm, bottom 3 mm, left and right 5 mm to the perforation). The preview darkens what will be cut. Use **🎯 Calibration chart** to measure your own printer
 - Shooting date read automatically from the JPEG EXIF and written back into the JPEG sent to the printer
 - Live printer status; all printer traffic is serialized (the SELPHY's network stack handles one connection at a time)
+- Interface in English, Traditional Chinese and Japanese, picked from the browser language (switch top-right)
 
 ## Requirements
 
