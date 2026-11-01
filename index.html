@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SELPHY 列印編輯</title>
+<style>
+  :root { --bg:#f4f3f0; --panel:#fff; --ink:#222; --sub:#777; --accent:#c2185b; --line:#ddd; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:12px 20px; display:flex; gap:16px; align-items:center; border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font-size:18px; margin:0; }
+  #status { font-size:13px; color:var(--sub); }
+  #status.ok b { color:#2e7d32; } #status.err b { color:#c62828; }
+  main { display:flex; gap:20px; padding:20px; align-items:flex-start; }
+  #stage { flex:1; display:flex; justify-content:center; align-items:center; min-height:70vh; background:#e4e2dd; border-radius:12px; position:relative; }
+  #preview { box-shadow:0 4px 18px rgba(0,0,0,.25); background:#fff; cursor:grab; touch-action:none; }
+  #preview.drag { cursor:grabbing; }
+  #drop { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:15px; pointer-events:none; }
+  aside { width:290px; background:var(--panel); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px; }
+  label.t { font-size:13px; color:var(--sub); display:block; margin-bottom:4px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; }
+  button, select, input[type=number] { font:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; }
+  button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  button.primary { background:var(--accent); color:#fff; border:none; padding:11px; font-size:16px; width:100%; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  input[type=range] { width:100%; }
+  #msg { font-size:13px; min-height:1.4em; white-space:pre-wrap; }
+  .hint { font-size:12px; color:var(--sub); line-height:1.5; }
+  #stage.real { overflow:auto; }
+  details { border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  details summary { cursor:pointer; font-size:13px; color:var(--sub); }
+  .crop4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:6px; }
+  .crop4 label { font-size:12px; color:var(--sub); display:flex; flex-direction:column; }
+  .crop4 input { width:100%; font:inherit; font-size:13px; padding:4px; border:1px solid var(--line); border-radius:6px; }
+  #ruler10 { height:10px; background:repeating-linear-gradient(90deg,#c2185b 0 2px,transparent 2px 10%); border-bottom:2px solid #c2185b; margin:6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🖨️ SELPHY CP1300 列印編輯</h1>
+  <span id="status">讀取印表機狀態中…</span>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="preview"></canvas>
+    <div id="drop">把照片拖進來，或按右邊「選照片」</div>
+  </div>
+  <aside>
+    <div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <button id="pick" style="width:100%">📂 選照片</button>
+      <div class="row" style="margin-top:6px">
+        <button id="realBtn">🔍 實際尺寸</button>
+        <button id="chartBtn">🎯 校正圖</button>
+      </div>
+    </div>
+    <details id="calib">
+      <summary>校正（螢幕尺寸／實際裁切）</summary>
+      <label class="t" style="margin-top:8px">① 螢幕：拿尺量下面這條，調到剛好 5 公分（每格 5 mm）</label>
+      <div id="ruler10"></div>
+      <input type="range" id="screenK" min="3" max="9" step="0.01">
+      <div class="hint">目前 <span id="screenKv"></span> 點／mm（只要調一次，會記住）</div>
+      <label class="t" style="margin-top:10px">② 裁切：印「校正圖」後，讀每邊最外面還看得到的數字（mm）</label>
+      <div class="hint">對應目前的傳送方式：<b id="cropFor"></b></div>
+      <div class="crop4">
+        <label>上<input type="number" id="cT" step="0.5" min="0" max="15"></label>
+        <label>下<input type="number" id="cB" step="0.5" min="0" max="15"></label>
+        <label>左<input type="number" id="cL" step="0.5" min="0" max="15"></label>
+        <label>右<input type="number" id="cR" step="0.5" min="0" max="15"></label>
+      </div>
+      <button id="cropClear" style="margin-top:6px">恢復預設值</button>
+      <div class="hint">PictBridge 已內建實測值（上 4.5／下 3／左右 5）。</div>
+    </details>
+    <div>
+      <label class="t">紙張</label>
+      <div class="row" id="papers">
+        <button data-p="L" class="on">L 89×119</button>
+        <button data-p="postcard">明信片 100×148</button>
+        <button data-p="card">卡片 54×86</button>
+      </div>
+    </div>
+    <div>
+      <label class="t">邊框</label>
+      <div class="row">
+        <button id="borderless" class="on">無邊框</button>
+        <button id="native">有邊框（同機器）</button>
+      </div>
+    </div>
+    <div>
+      <label class="t">傳送方式</label>
+      <div class="row">
+        <button id="tPb" class="on">PictBridge（模糊日期）</button>
+        <button id="tIpp">IPP</button>
+        <button id="tCpnp">CPNP（真無邊框）</button>
+      </div>
+    </div>
+    <div id="dateRow">
+      <label class="t">拍攝日期（自動讀照片檔，可修改）</label>
+      <input type="text" id="date" placeholder="2026:10:31 16:58:44" style="width:100%;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+      <div class="row" id="dpRow" style="margin-top:6px">
+        <button id="dpDefault" class="on">照機器設定印日期</button>
+        <button id="dpOff">不印日期</button>
+      </div>
+      <div class="hint" id="pbHint" style="margin-top:6px">要模糊日期：機器「打印設定 → 日期 → 模糊顯示」。⚠️ 印表機重開機會清掉這個設定，開機後要重設。</div>
+    </div>
+    <div>
+      <label class="t">方向</label>
+      <div class="row">
+        <button id="portrait" class="on">直式</button>
+        <button id="landscape">橫式</button>
+        <button id="rotate">↻ 照片轉 90°</button>
+      </div>
+    </div>
+    <div>
+      <label class="t">縮放 <span id="zv">100%</span>（滾輪也可以）</label>
+      <input type="range" id="zoom" min="20" max="400" value="100">
+      <div class="row" style="margin-top:6px">
+        <button id="fill">填滿紙張</button>
+        <button id="fit">完整顯示</button>
+        <button id="center">置中</button>
+      </div>
+    </div>
+    <div>
+      <label class="t"><input type="checkbox" id="grid" checked> 顯示九宮格（不會印出來）</label>
+    </div>
+    <div>
+      <label class="t">另外加白框 <span id="bv">0</span> mm</label>
+      <input type="range" id="border" min="0" max="10" step="0.5" value="0">
+    </div>
+    <div>
+      <label class="t">張數</label>
+      <input type="number" id="copies" min="1" max="10" value="1" style="width:80px">
+    </div>
+    <div class="hint" id="hint"></div>
+    <button id="validate" disabled>✔ 只驗證（不出紙）</button>
+    <button id="print" class="primary" disabled>列印</button>
+    <div id="msg"></div>
+  </aside>
+</main>
+<script>
+const PAPERS = { L:[89,119], postcard:[100,148], card:[54,86] }; // mm（直式）
+// 機器原生有邊框的邊界 [左右, 上下] mm（直式），取自印表機回報值
+const NATIVE = { L:[2.5,3.4], postcard:[2.5,3.7] };
+const DPI = 300, SAFE_MM = 2;
+const S = { img:null, paper:'L', landscape:false, native:false, grid:true, rot:0, zoom:1, ox:0, oy:0, borderMm:0, transport:'pictbridge', dateprint:'default' };
+const $ = id => document.getElementById(id);
+const cv = $('preview');
+let previewPxPerMm = 1;
+
+// ---- 校正（存在瀏覽器；讀寫失敗就用預設值）----
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+// 螢幕每 mm 幾個 CSS 點。MacBook Pro 14 吋預設解析度（1512 寬／302 mm）約 5.0
+let screenK = parseFloat(store.get('selphy_screen_k')) || 5.0;
+const TNAME = { pictbridge: 'PictBridge', ipp: 'IPP', cpnp: 'CPNP' };
+S.real = false;
+// 實測裁切值（mm），以「橫式照片」的上下左右記錄，依傳送方式分開存
+// 內建預設：2026-11-01 校正圖實測（PictBridge 無邊框 L）：上 4.5、下 3、左右各 5（左右含撕線位置）
+// → 印表機放大約 108%，並整張往下偏約 0.75 mm。面板改過就以面板值為準。
+const DEFAULT_CROP = { pictbridge: { t: 4.5, b: 3, l: 5, r: 5 } };
+function cropOf(t) {
+  try { return JSON.parse(store.get('selphy_crop_' + t)) || DEFAULT_CROP[t] || null; }
+  catch { return DEFAULT_CROP[t] || null; }
+}
+// 目前方向下要遮掉的 mm：{t,b,l,r}；直式時把橫式的左右對應到上下（印表機轉向，近似處理）
+function cropNow() {
+  if (S.native) return null;
+  const c = cropOf(S.transport);
+  if (!c) return null;
+  return S.landscape ? c : { t: c.l, b: c.r, l: c.t, r: c.b };
+}
+
+function paperMm() { const [w,h] = PAPERS[S.paper]; return S.landscape ? [h,w] : [w,h]; }
+function nativeMm() {   // 目前方向下的原生邊界 [x, y] mm
+  if (!S.native) return [0, 0];
+  const [lr, tb] = NATIVE[S.paper]; return S.landscape ? [tb, lr] : [lr, tb];
+}
+// 照片可出現的區域（mm，以整張紙左上為原點）
+function photoRect() {
+  const [pw, ph] = paperMm(), [nx, ny] = nativeMm(), b = S.borderMm;
+  return { x: nx + b, y: ny + b, w: pw - 2*(nx + b), h: ph - 2*(ny + b) };
+}
+function coverScale(r) {   // 照片剛好填滿 r 時的倍率（mm/像素）
+  const rotated = S.rot % 180 !== 0;
+  const sw = rotated ? S.img.height : S.img.width, sh = rotated ? S.img.width : S.img.height;
+  return { cover: Math.max(r.w / sw, r.h / sh), contain: Math.min(r.w / sw, r.h / sh) };
+}
+
+// 在 mm 座標系統畫整張紙；(x0,y0) 是 canvas 左上角對應的 mm 位置。預覽與輸出共用，確保所見即所得
+function render(c, pxPerMm, x0, y0, guides) {
+  const g = c.getContext('2d');
+  const [pw, ph] = paperMm(), r = photoRect();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.setTransform(pxPerMm, 0, 0, pxPerMm, -x0 * pxPerMm, -y0 * pxPerMm);
+  if (S.img) {
+    const scale = coverScale(r).cover * S.zoom;
+    g.save();
+    g.beginPath(); g.rect(r.x, r.y, r.w, r.h); g.clip();
+    g.translate(pw/2 + S.ox*pw, ph/2 + S.oy*ph);
+    g.rotate(S.rot * Math.PI / 180);
+    g.drawImage(S.img, -S.img.width*scale/2, -S.img.height*scale/2, S.img.width*scale, S.img.height*scale);
+    g.restore();
+  }
+  if (guides) {
+    const lw = 1 / pxPerMm * (window.devicePixelRatio || 1);
+    g.save(); g.lineWidth = lw;
+    if (S.grid) {
+      g.strokeStyle = 'rgba(255,255,255,.75)';
+      for (let i = 1; i < 3; i++) {
+        g.beginPath(); g.moveTo(r.x + r.w*i/3, r.y); g.lineTo(r.x + r.w*i/3, r.y + r.h); g.stroke();
+        g.beginPath(); g.moveTo(r.x, r.y + r.h*i/3); g.lineTo(r.x + r.w, r.y + r.h*i/3); g.stroke();
+      }
+    }
+    const crop = cropNow();
+    if (crop) {   // 有實測裁切值：暗色遮住會被裁掉的部分
+      const ix = crop.l, iy = crop.t, iw = pw - crop.l - crop.r, ih = ph - crop.t - crop.b;
+      g.fillStyle = 'rgba(0,0,0,.45)';
+      g.beginPath(); g.rect(0, 0, pw, ph); g.rect(ix, iy, iw, ih); g.fill('evenodd');
+      g.strokeStyle = 'rgba(255,255,255,.9)'; g.strokeRect(ix, iy, iw, ih);
+    } else if (!S.native) {   // 沒有實測值：用 2 mm 虛線當安全範圍
+      g.setLineDash([6*lw, 4*lw]); g.strokeStyle = 'rgba(194,24,91,.8)';
+      g.strokeRect(SAFE_MM, SAFE_MM, pw - 2*SAFE_MM, ph - 2*SAFE_MM);
+    }
+    g.restore();
+  }
+}
+
+function layoutPreview() {
+  const st = $('stage');
+  const [mw, mh] = paperMm();
+  // 實際尺寸：用校正過的「每 mm 幾點」；否則塞滿預覽區
+  const k = S.real ? screenK : Math.min((st.clientWidth - 60) / mw, (st.clientHeight - 60) / mh);
+  st.classList.toggle('real', S.real);
+  $('realBtn').classList.toggle('on', S.real);
+  const dpr = window.devicePixelRatio || 1;
+  cv.style.width = mw*k + 'px'; cv.style.height = mh*k + 'px';
+  cv.width = Math.round(mw*k*dpr); cv.height = Math.round(mh*k*dpr);
+  previewPxPerMm = cv.width / mw;
+  draw();
+}
+function draw() {
+  render(cv, previewPxPerMm, 0, 0, true);
+  $('hint').textContent = S.native
+    ? '有邊框：四周會留機器固定的細白邊，照片完全不會被裁。'
+    : cropNow()
+      ? '無邊框：暗色部分是實測會被裁掉的範圍，白框內就是印出來的樣子。'
+      : '無邊框：虛線外側可能被切掉一點點，重要的東西放在虛線內。（印校正圖可改成實測值）';
+  syncCalib();
+  $('zv').textContent = Math.round(S.zoom*100) + '%';
+  $('zoom').value = Math.round(S.zoom*100);
+  $('bv').textContent = S.borderMm;
+  $('drop').style.display = S.img ? 'none' : 'flex';
+  $('print').disabled = $('validate').disabled = !S.img;
+}
+
+// 從 JPEG 的 EXIF 讀拍攝日期（DateTimeOriginal 0x9003），讀不到回 null（HEIC 也回 null）
+async function readExifDate(f) {
+  try {
+    const v = new DataView(await f.slice(0, 131072).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return null;
+    let i = 2;
+    while (i + 4 < v.byteLength && v.getUint8(i) === 0xFF) {
+      const m = v.getUint8(i + 1), len = v.getUint16(i + 2);
+      if (m === 0xE1 && v.getUint32(i + 4) === 0x45786966) {          // "Exif"
+        const t = i + 10, le = v.getUint16(t) === 0x4949;
+        const u16 = o => v.getUint16(t + o, le), u32 = o => v.getUint32(t + o, le);
+        const findTag = (ifd, tag) => {
+          const n = u16(ifd);
+          for (let k = 0; k < n; k++) { const e = ifd + 2 + 12 * k; if (u16(e) === tag) return u32(e + 8); }
+          return null;
+        };
+        const exif = findTag(u32(4), 0x8769);
+        const off = exif != null ? findTag(exif, 0x9003) : null;
+        if (off == null) return null;
+        let s = '';
+        for (let k = 0; k < 19; k++) s += String.fromCharCode(v.getUint8(t + off + k));
+        return /^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? s : null;
+      }
+      i += 2 + len;
+    }
+  } catch (e) { /* 讀不到就用檔案時間 */ }
+  return null;
+}
+
+// 讀照片
+function loadFile(f) {
+  if (!f) return;
+  const img = new Image();
+  const d = new Date(f.lastModified), p2 = n => String(n).padStart(2, '0');
+  $('date').value = `${d.getFullYear()}:${p2(d.getMonth()+1)}:${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+  readExifDate(f).then(v => { if (v) $('date').value = v; });
+  img.onload = () => { S.img = img; S.zoom = 1; S.ox = S.oy = 0; S.rot = 0;
+    // 照片橫的就自動切橫式
+    S.landscape = img.width > img.height; syncButtons(); layoutPreview(); msg(''); };
+  img.onerror = () => msg('讀不到這張照片。HEIC 請改用 Safari 開這個頁面，或先轉成 JPG。', true);
+  img.src = URL.createObjectURL(f);
+}
+$('pick').onclick = () => $('file').click();
+$('file').onchange = e => loadFile(e.target.files[0]);
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
+
+// 拖曳移位
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x:e.clientX, y:e.clientY, ox:S.ox, oy:S.oy }; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+cv.addEventListener('pointermove', e => { if (!drag) return;
+  S.ox = drag.ox + (e.clientX - drag.x) / cv.clientWidth;
+  S.oy = drag.oy + (e.clientY - drag.y) / cv.clientHeight; draw(); });
+cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('drag'); });
+cv.addEventListener('wheel', e => { e.preventDefault();
+  S.zoom = Math.min(4, Math.max(0.2, S.zoom * (e.deltaY < 0 ? 1.05 : 1/1.05))); draw(); }, { passive:false });
+
+// 控制項
+function syncButtons() {
+  document.querySelectorAll('#papers button').forEach(b => b.classList.toggle('on', b.dataset.p === S.paper));
+  $('portrait').classList.toggle('on', !S.landscape);
+  $('landscape').classList.toggle('on', S.landscape);
+  if (!NATIVE[S.paper]) S.native = false;   // 卡片沒有原生有邊框模式
+  $('native').disabled = !NATIVE[S.paper];
+  $('native').classList.toggle('on', S.native);
+  $('borderless').classList.toggle('on', !S.native);
+}
+document.querySelectorAll('#papers button').forEach(b => b.onclick = () => { S.paper = b.dataset.p; syncButtons(); layoutPreview(); });
+$('borderless').onclick = () => { S.native = false; syncButtons(); draw(); };
+$('native').onclick = () => { S.native = true; syncButtons(); draw(); };
+$('grid').onchange = e => { S.grid = e.target.checked; draw(); };
+function setTransport(t) {
+  S.transport = t;
+  $('tPb').classList.toggle('on', t === 'pictbridge');
+  $('tIpp').classList.toggle('on', t === 'ipp');
+  $('tCpnp').classList.toggle('on', t === 'cpnp');
+  $('dateRow').hidden = t === 'ipp';
+  $('dpRow').hidden = $('pbHint').hidden = t !== 'pictbridge';
+  $('validate').hidden = t !== 'ipp';   // 只有 IPP 有「只驗證」
+  draw();   // 不同傳送方式的實測裁切值不同
+}
+function setDateprint(v) {
+  S.dateprint = v;
+  $('dpDefault').classList.toggle('on', v === 'default');
+  $('dpOff').classList.toggle('on', v === 'off');
+}
+$('tPb').onclick = () => setTransport('pictbridge');
+$('tIpp').onclick = () => setTransport('ipp');
+$('tCpnp').onclick = () => setTransport('cpnp');
+$('dpDefault').onclick = () => setDateprint('default');
+$('dpOff').onclick = () => setDateprint('off');
+setTransport('pictbridge');
+
+// ---- 校正面板 ----
+function syncCalib() {
+  $('screenK').value = screenK;
+  $('screenKv').textContent = screenK.toFixed(2);
+  $('ruler10').style.width = (50 * screenK) + 'px';
+  $('cropFor').textContent = TNAME[S.transport];
+  const c = cropOf(S.transport) || {};
+  for (const [id, k] of [['cT','t'],['cB','b'],['cL','l'],['cR','r']])
+    if (document.activeElement !== $(id)) $(id).value = c[k] ?? '';
+}
+$('screenK').oninput = e => { screenK = +e.target.value; store.set('selphy_screen_k', screenK); layoutPreview(); };
+for (const id of ['cT','cB','cL','cR']) $(id).oninput = () => {
+  const v = id2 => parseFloat($(id2).value);
+  const c = { t: v('cT'), b: v('cB'), l: v('cL'), r: v('cR') };
+  if (Object.values(c).every(Number.isFinite)) { store.set('selphy_crop_' + S.transport, JSON.stringify(c)); draw(); }
+};
+$('cropClear').onclick = () => { store.set('selphy_crop_' + S.transport, null); draw(); };
+$('realBtn').onclick = () => { S.real = !S.real; if (S.real) $('calib').open = true; layoutPreview(); };
+
+// ---- 校正圖：四邊各一把 0–12 mm 的尺，印出來讀「最外面還看得到的數字」就是該邊被裁掉的 mm ----
+function makeChart() {
+  const W = 119, H = 89, k = DPI / 25.4;                 // 橫式 L，300 dpi
+  const c = document.createElement('canvas');
+  c.width = Math.round(W * k); c.height = Math.round(H * k);
+  const g = c.getContext('2d');
+  g.scale(k, k);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  // 每 1 mm 一圈淡色色帶（0–12 mm），看得出四邊裁得均不均勻
+  for (let d = 0; d < 12; d++) {
+    g.fillStyle = d % 2 ? '#f2f2f2' : '#dcdcdc';
+    g.beginPath(); g.rect(d, d, W - 2*d, H - 2*d); g.rect(d + 1, d + 1, W - 2*d - 2, H - 2*d - 2); g.fill('evenodd');
+  }
+  const edges = [
+    { name: '上', color: '#d32f2f', at: (d, s) => [W * s, d], dir: 'v' },
+    { name: '下', color: '#1565c0', at: (d, s) => [W * s, H - d], dir: 'v' },
+    { name: '左', color: '#2e7d32', at: (d, s) => [d, H * s], dir: 'h' },
+    { name: '右', color: '#ef6c00', at: (d, s) => [W - d, H * s], dir: 'h' },
+  ];
+  g.textBaseline = 'middle'; g.textAlign = 'center';
+  for (const e of edges) {
+    for (const s of [0.25, 0.5, 0.75]) {               // 每邊三把尺，看得出有沒有歪
+      for (let d = 0; d <= 12; d++) {
+        const [x, y] = e.at(d, s), len = d % 5 === 0 ? 4 : 2.5;
+        g.strokeStyle = e.color; g.lineWidth = 0.25;
+        g.beginPath();
+        if (e.dir === 'v') { g.moveTo(x - len/2, y); g.lineTo(x + len/2, y); }
+        else { g.moveTo(x, y - len/2); g.lineTo(x, y + len/2); }
+        g.stroke();
+        if (d >= 1) {                                    // 奇數寫刻度一側、偶數寫另一側，同側字距 2 mm 不會疊字
+          g.fillStyle = e.color; g.font = 'bold 1.7px sans-serif';
+          const side = d % 2 ? -1 : 1, off = side * (len/2 + 1.5);
+          if (e.dir === 'v') g.fillText(d, x + off, y);
+          else g.fillText(d, x, y + off);
+        }
+      }
+    }
+    const [lx, ly] = e.at(18, 0.5);
+    g.fillStyle = e.color; g.font = 'bold 5px sans-serif'; g.fillText(e.name, lx, ly);
+  }
+  g.fillStyle = '#333'; g.font = 'bold 3.2px sans-serif';
+  g.fillText('SELPHY 裁切校正圖（L 橫式）', W/2, H/2 - 4);
+  g.font = '2.4px sans-serif';
+  g.fillText('每一邊：讀最外面還看得到的數字＝被裁掉幾 mm', W/2, H/2 + 1);
+  g.fillText('三把尺數字不同代表有偏移，請三個都告訴我', W/2, H/2 + 4.5);
+  const img = new Image();
+  img.onload = () => {
+    S.img = img; S.zoom = 1; S.ox = S.oy = 0; S.rot = 0; S.landscape = true; S.native = false;
+    $('date').value = ''; setDateprint('off');
+    syncButtons(); layoutPreview();
+    msg('已載入校正圖。用 ' + TNAME[S.transport] + ' 印一張，把四邊讀到的數字填進「校正」面板。');
+  };
+  img.src = c.toDataURL('image/png');
+}
+$('chartBtn').onclick = makeChart;
+$('portrait').onclick = () => { S.landscape = false; syncButtons(); layoutPreview(); };
+$('landscape').onclick = () => { S.landscape = true; syncButtons(); layoutPreview(); };
+$('rotate').onclick = () => { S.rot = (S.rot + 90) % 360; draw(); };
+$('zoom').oninput = e => { S.zoom = e.target.value / 100; draw(); };
+$('fill').onclick = () => { S.zoom = 1; S.ox = S.oy = 0; draw(); };
+$('fit').onclick = () => { if (!S.img) return;
+  const s = coverScale(photoRect()); S.zoom = s.contain / s.cover; S.ox = S.oy = 0; draw(); };
+$('center').onclick = () => { S.ox = S.oy = 0; draw(); };
+$('border').oninput = e => { S.borderMm = +e.target.value; draw(); };
+window.addEventListener('resize', layoutPreview);
+
+// 輸出：依可列印區域 300dpi 畫出（有邊框時扣掉機器邊界），橫式再轉回直式（印表機進紙方向是直的）
+function exportJpeg() {
+  const [pw, ph] = paperMm(), [nx, ny] = nativeMm();
+  const k = DPI / 25.4;
+  const W = Math.round((pw - 2*nx) * k), H = Math.round((ph - 2*ny) * k);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  render(c, k, nx, ny, false);
+  let out = c;
+  // PictBridge 保持橫式（像相機直印，印表機自己轉向，日期才會落在照片右下角）；IPP／CPNP 轉回直式
+  if (S.landscape && S.transport !== 'pictbridge') {
+    out = document.createElement('canvas'); out.width = H; out.height = W;
+    const g = out.getContext('2d'); g.translate(H, 0); g.rotate(Math.PI/2); g.drawImage(c, 0, 0);
+  }
+  return new Promise(r => out.toBlob(b => r({ blob: b, w: out.width, h: out.height }), 'image/jpeg', 0.95));
+}
+
+async function send(validate) {
+  const btns = [$('print'), $('validate')]; btns.forEach(b => b.disabled = true);
+  sending = true;
+  msg(validate ? '驗證中…' : '送出中…');
+  try {
+    const { blob, w, h } = await exportJpeg();
+    const q = new URLSearchParams({ paper:S.paper, copies:$('copies').value, validate: validate ? '1' : '0',
+      bordered: S.native ? '1' : '0', transport: S.transport, w, h, dateprint: S.dateprint,
+      date: S.transport !== 'ipp' ? $('date').value.trim() : '' });
+    if (S.transport !== 'ipp' && !validate) msg(`${S.transport === 'pictbridge' ? 'PictBridge' : 'CPNP'} 傳送中…（約 1–2 分鐘，完成前不要關頁面）`);
+    const r = await (await fetch('/print?' + q, { method:'POST', body:blob })).json();
+    if (r.ok) msg(validate ? '✔ 印表機接受這組設定（沒有出紙）' : `✔ 已送出（工作 #${r.job_id}），約 1 分鐘，紙會進出好幾次是正常的`);
+    else msg('✘ 失敗：' + r.status, true);
+  } catch (e) { msg('✘ ' + e, true); }
+  sending = false;
+  btns.forEach(b => b.disabled = !S.img);
+  setTimeout(refreshStatus, 1500);
+}
+$('validate').onclick = () => send(true);
+$('print').onclick = () => send(false);
+function msg(t, err) { $('msg').textContent = t; $('msg').style.color = err ? '#c62828' : ''; }
+
+// 印表機狀態
+const STATE = { idle:'待機', processing:'列印中', stopped:'停止' };
+const REASON = { none:'', 'media-jam-error':'卡紙', 'media-empty-error':'沒紙', 'marker-supply-empty-error':'色帶用完', 'media-needed':'需要放紙' };
+const MEDIA = { 'om_dsc-photo_89x119mm':'L', 'jpn_hagaki_100x148mm':'明信片', 'om_card_54x86mm':'卡片' };
+let statusBusy = false, sending = false;
+async function refreshStatus() {
+  if (statusBusy || sending) return;   // 上一次還沒回來、或正在送印，就不再問（印表機一次只能處理一個連線）
+  statusBusy = true;
+  try {
+    const s = await (await fetch('/status')).json();
+    const el = $('status');
+    if (!s.online) { el.className = 'err'; el.innerHTML = '<b>● 離線</b> ' + s.message; return; }
+    const bad = s.reasons !== 'none';
+    el.className = bad ? 'err' : 'ok';
+    el.innerHTML = `<b>● ${STATE[s.state] || s.state}${bad ? '：' + (REASON[s.reasons] || s.reasons) : ''}</b>　紙匣：${MEDIA[s.media_ready] || s.media_ready}`;
+  } catch { $('status').textContent = '後端沒有回應'; }
+  finally { statusBusy = false; }
+}
+refreshStatus(); setInterval(refreshStatus, 15000);
+layoutPreview();
+</script>
+</body>
+</html>
